@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Учёт выдачи молока</title>
+<style>
+:root{
+  --brand:#1F3A5F;--brand-2:#2B4E7E;--bg:#FFFFFF;--panel:#F4F6F8;--line:#DDE2E8;--text:#1A1A1A;--muted:#5F6B7A;
+  --ok:#2E7D32;--work:#1565C0;--sick:#C62828;--nopass:#EF6C00;--gray:#757575;--manual:#6A1B9A;
+  --warn-bg:#FFF4E5;--err-bg:#FDECEA;--ok-bg:#E8F5E9;--info-bg:#E8F0FA;--manual-bg:#F3E5F5;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.4;color:var(--text);background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:600}
+a{color:var(--work)}
+
+/* demo bar */
+.demobar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:6px 20px;background:#FFF8E1;border-bottom:1px solid #F0E2B6;font-size:13px;color:#5D4A12}
+.demobar label{display:flex;align-items:center;gap:6px}
+.demobar select,.demobar input{height:28px;padding:0 6px;border:1px solid #D9C88F;border-radius:4px;background:#fff;font-size:13px}
+.demobar .sp{flex:1}
+.demobar button{height:28px;padding:0 10px;border:1px solid #D9C88F;border-radius:4px;background:#fff;cursor:pointer;font-size:13px}
+
+/* header */
+.top{background:var(--brand);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:12px 20px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:42px;height:42px;border-radius:6px;background:#fff;display:grid;place-items:center;flex:none}
+.brand h1{font-size:19px;white-space:nowrap}
+.brand small{display:block;font-size:12px;opacity:.75;font-weight:400}
+.top .sp{flex:1}
+.hinfo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;font-size:14px}
+.daybadge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;font-weight:600;font-size:13px;letter-spacing:.02em}
+.daybadge.yes{background:#fff;color:var(--ok)}
+.daybadge.no{background:rgba(255,255,255,.15);color:#fff}
+.daybadge.hol{background:#FDECEA;color:var(--sick)}
+.daybadge i{width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block}
+.skud{display:inline-flex;align-items:center;gap:6px}
+.skud.stale{color:#FFCC80;font-weight:600}
+.iconbtn{height:34px;min-width:34px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:6px;cursor:pointer;font-size:16px;padding:0 8px}
+.iconbtn:hover{background:rgba(255,255,255,.12)}
+.user{text-align:right;line-height:1.25}
+.user b{display:block;font-weight:600}
+.user span{font-size:12px;opacity:.8}
+.lang{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:6px;overflow:hidden}
+.lang button{height:34px;padding:0 10px;border:0;background:transparent;color:#fff;cursor:pointer;font-size:13px;font-weight:600}
+.lang button.on{background:#fff;color:var(--brand)}
+
+nav.tabsnav{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);background:#fff;overflow-x:auto}
+nav.tabsnav a{display:block;padding:12px 16px;text-decoration:none;color:var(--muted);font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabsnav a.on{color:var(--brand);border-bottom-color:var(--brand)}
+nav.tabsnav a:hover{color:var(--brand)}
+
+main{max-width:1320px;margin:0 auto;padding:20px}
+
+/* controls */
+.btn{min-height:40px;padding:0 16px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:#B8C1CC}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-2);border-color:var(--brand-2)}
+.btn-issue{background:var(--work);border-color:var(--work);color:#fff;min-width:110px}
+.btn-issue:hover{background:#0D5BAF;border-color:#0D5BAF}
+.btn-manual{background:var(--manual);border-color:var(--manual);color:#fff;min-width:110px}
+.btn-danger{background:var(--sick);border-color:var(--sick);color:#fff}
+.btn:disabled,.btn[disabled]{background:#E9ECEF;border-color:#E9ECEF;color:#9AA3AE;cursor:not-allowed}
+.btn-sm{min-height:32px;padding:0 10px;font-size:13px}
+.input,select.input{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0}
+textarea.input{height:auto;padding:8px 12px;resize:vertical}
+.input:focus,.btn:focus-visible,.combo-btn:focus-visible{outline:2px solid #90B4E8;outline-offset:1px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field>span{font-size:13px;color:var(--muted);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:16px}
+.toolbar .grow{flex:1 1 320px}
+
+/* combo */
+.combo{position:relative;min-width:0}
+.combo-btn{width:100%;height:40px;padding:0 36px 0 12px;border:1px solid var(--line);border-radius:6px;background:#fff;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.combo-btn::after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.combo-panel{position:absolute;z-index:20;top:44px;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(16,32,56,.14);padding:8px}
+.combo-panel .input{width:100%}
+.combo-list{max-height:340px;overflow:auto;margin-top:6px}
+.combo-item{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:4px;cursor:pointer}
+.combo-item:hover,.combo-item.on{background:var(--info-bg)}
+.combo-item.on{font-weight:600}
+
+/* counters */
+.counters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.counter{background:var(--panel);border-radius:6px;padding:10px 14px;border-left:4px solid var(--line)}
+.counter b{display:block;font-size:24px;font-weight:600;line-height:1.2}
+.counter span{font-size:13px;color:var(--muted)}
+.counter.c-work{border-left-color:var(--work)}
+.counter.c-ok{border-left-color:var(--ok)}
+.counter.c-left{border-left-color:var(--brand)}
+.counter.c-abs{border-left-color:var(--gray)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:18px;background:#fff;cursor:pointer;font-weight:600;color:var(--muted)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip em{font-style:normal;opacity:.75;margin-left:4px}
+
+/* banners */
+.banner{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:12px 16px;border-radius:6px;margin-bottom:14px;border-left:4px solid}
+.banner b{font-weight:600}
+.banner .sp{flex:1}
+.banner.warn{background:var(--warn-bg);border-color:var(--nopass)}
+.banner.err{background:var(--err-bg);border-color:var(--sick)}
+.banner.info{background:var(--info-bg);border-color:var(--work)}
+.banner.manual{background:var(--manual-bg);border-color:var(--manual)}
+.banner.ok{background:var(--ok-bg);border-color:var(--ok)}
+
+/* tables */
+.tablewrap{border:1px solid var(--line);border-radius:6px;overflow-x:auto;background:#fff}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{background:var(--panel);font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;position:sticky;top:0}
+tbody tr:hover{background:#FAFBFC}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.c,th.c{text-align:center}
+.tabno{font-variant-numeric:tabular-nums;color:var(--muted)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--brand)}
+th .arr{font-size:11px;margin-left:3px}
+tr.group td{background:#EEF2F6;font-weight:600;color:var(--brand)}
+tr.subtotal td{background:#F8FAFB;font-weight:600}
+tr.total td{background:var(--brand);color:#fff;font-weight:600}
+tr.clickable{cursor:pointer}
+
+.status{display:inline-flex;align-items:center;gap:7px;font-weight:600;white-space:nowrap}
+.status i{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.status small{font-weight:400;color:var(--muted);margin-left:2px}
+.done{display:inline-flex;align-items:center;gap:8px;color:var(--ok);font-weight:600;white-space:nowrap}
+.done .ck{width:28px;height:28px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:16px}
+.actcell{display:flex;align-items:center;gap:8px;justify-content:flex-start}
+.menu-btn{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;font-size:16px;line-height:1}
+.popmenu{position:absolute;z-index:40;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(16,32,56,.16);padding:4px;min-width:200px}
+.popmenu button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;cursor:pointer;border-radius:4px}
+.popmenu button:hover{background:var(--err-bg);color:var(--sick)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;background:var(--panel);color:var(--muted);white-space:nowrap}
+.tag.manual{background:var(--manual-bg);color:var(--manual)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.err{background:var(--err-bg);color:var(--sick)}
+.tag.warn{background:var(--warn-bg);color:var(--nopass)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.sectiontitle{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:22px 0 10px}
+.sectiontitle h2{font-size:17px}
+
+/* cards & admin */
+.page-h{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:16px}
+.page-h h2{font-size:20px}
+.page-h .sp{flex:1}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:16px}
+.card h3{font-size:16px;margin-bottom:12px}
+.panel{background:var(--panel);border-radius:6px;padding:14px 16px;margin-bottom:16px}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px}
+.sidenav{display:flex;flex-direction:column;gap:2px}
+.sidenav a{padding:10px 12px;border-radius:6px;text-decoration:none;color:var(--text);font-weight:600}
+.sidenav a.on{background:var(--brand);color:#fff}
+.sidenav a:not(.on):hover{background:var(--panel)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.integ{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.integ .card{margin:0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:10px 0 14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0}
+.tree label{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--panel)}
+.tree input{width:18px;height:18px}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.checks label.on{border-color:var(--brand);background:var(--info-bg)}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:100;overflow:auto}
+.dialog{background:#fff;border-radius:8px;width:100%;max-width:560px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.dialog.wide{max-width:900px}
+.dlg-h{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dlg-h h3{font-size:17px;flex:1}
+.dlg-h .x{width:36px;height:36px;border:0;background:none;font-size:22px;cursor:pointer;color:var(--muted)}
+.dlg-b{padding:16px 20px}
+.dlg-f{display:flex;justify-content:flex-end;gap:10px;padding:12px 20px 18px}
+.err-text{color:var(--sick);font-size:13px;min-height:18px}
+
+.toast{position:fixed;right:20px;bottom:20px;z-index:200;background:#1A1A1A;color:#fff;padding:12px 16px;border-radius:6px;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.ok{background:var(--ok)}
+.toast.err{background:var(--sick)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13px;color:var(--muted)}
+footer{max-width:1320px;margin:0 auto;padding:8px 20px 28px;font-size:12px;color:var(--muted)}
+
+@media (max-width:1000px){
+  .counters{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .layout{grid-template-columns:1fr}
+  .sidenav{flex-direction:row;flex-wrap:wrap}
+  .integ,.grid2{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  main{padding:16px}
+  .top,.demobar,nav.tabsnav{padding-left:16px;padding-right:16px}
+  .counters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .user{text-align:left}
+  .brand h1{font-size:17px;white-space:normal}
+}
+</style>
+</head>
+<body>
+<div class="demobar" id="demobar"></div>
+<header class="top" id="top"></header>
+<nav class="tabsnav" id="nav"></nav>
+<main id="main"></main>
+<footer>Прототип по PRD «Веб-система учёта выдачи молока сотрудникам», v1.3. Данные СКУД, 1С/HR и AD сымитированы; изменения сохраняются в этом браузере.</footer>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= utils ================= */
+const pad=n=>String(n).padStart(2,'0');
+function realToday(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function dn(s){const[y,m,d]=s.split('-').map(Number);return Math.floor(Date.UTC(y,m-1,d)/864e5)}
+function fromDn(n){const d=new Date(n*864e5);return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())}
+function addDays(s,k){return fromDn(dn(s)+k)}
+function wd(s){return (dn(s)+4)%7} /* 0 = Вс */
+function fmtD(s){if(!s)return '';const[y,m,d]=s.split('-');return d+'.'+m+'.'+y}
+function hm(min){return pad(Math.floor(min/60))+':'+pad(min%60)}
+function nowHM(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}
+function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes()}
+function stamp(){const d=new Date();return realToday()+' '+nowHM()+':'+pad(d.getSeconds())}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function liters(v){return (Math.round(v*10)/10).toLocaleString('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1})}
+function hash(){const s=Array.prototype.join.call(arguments,'|');let h1=0xdeadbeef,h2=0x41c6ce57;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  return (h1>>>0)/4294967296}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const $=(sel,root)=>(root||document).querySelector(sel);
+const $$=(sel,root)=>Array.from((root||document).querySelectorAll(sel));
+
+/* ================= i18n ================= */
+const I18N={
+ ru:{app:'Учёт выдачи молока',sub:'Центральное управление',navIssue:'Выдача',navReport:'Отчёт',navAdmin:'Администрирование',
+  issueDay:'ДЕНЬ ВЫДАЧИ',noIssueDay:'НЕ ДЕНЬ ВЫДАЧИ',holiday:'ПРАЗДНИЧНЫЙ ДЕНЬ',skudUpd:'СКУД обновлено',refresh:'Обновить данные СКУД',
+  dept:'Подразделение',search:'Поиск по ФИО или таб. №',total:'Всего',atWork:'На работе',issued:'Выдано',left:'Осталось выдать',absent:'Отсутствуют',all:'Все',
+  tab:'Таб. №',fio:'ФИО',pos:'Должность',status:'Статус',pass:'Проход',action:'Выдача',give:'Выдать',cancelIssue:'Отменить выдачу',
+  st_work:'На работе',st_sick:'Больничный',st_vacation:'Отпуск',st_trip:'Командировка',st_other:'Прочее отсутствие',st_nopass:'Нет прохода',st_manual:'По ручному списку',st_issued:'Молоко выдано',
+  role_storekeeper:'Кладовщик',role_admin:'Администратор',role_viewer:'Наблюдатель',empty:'Нет сотрудников по выбранным условиям',otherDepts:'Найдено в других подразделениях',
+  wd:['Вс','Пн','Вт','Ср','Чт','Пт','Сб']},
+ kz:{app:'Сүт беруді есепке алу',sub:'Орталық басқару',navIssue:'Беру',navReport:'Есеп',navAdmin:'Әкімшілендіру',
+  issueDay:'СҮТ БЕРУ КҮНІ',noIssueDay:'СҮТ БЕРУ КҮНІ ЕМЕС',holiday:'МЕРЕКЕ КҮНІ',skudUpd:'СКУД жаңартылды',refresh:'СКУД деректерін жаңарту',
+  dept:'Бөлімше',search:'Аты-жөні немесе таб. № бойынша іздеу',total:'Барлығы',atWork:'Жұмыста',issued:'Берілді',left:'Беру қалды',absent:'Жоқ',all:'Бәрі',
+  tab:'Таб. №',fio:'Аты-жөні',pos:'Лауазымы',status:'Мәртебесі',pass:'Өту',action:'Беру',give:'Беру',cancelIssue:'Беруді болдырмау',
+  st_work:'Жұмыста',st_sick:'Ауруы бойынша',st_vacation:'Демалыс',st_trip:'Іссапар',st_other:'Басқа себеп',st_nopass:'Өту жоқ',st_manual:'Қолмен тізім бойынша',st_issued:'Сүт берілді',
+  role_storekeeper:'Қойма меңгерушісі',role_admin:'Әкімші',role_viewer:'Бақылаушы',empty:'Таңдалған шарттар бойынша қызметкерлер жоқ',otherDepts:'Басқа бөлімшелерде табылды',
+  wd:['Жс','Дс','Сс','Ср','Бс','Жм','Сн']}
+};
+function t(k){return (I18N[S.lang]&&I18N[S.lang][k])||I18N.ru[k]||k}
+
+/* ================= справочники (имитация 1С/HR) ================= */
+const DEPTS=[
+ {id:'cu',name:'Центральное управление',parent:null},
+ {id:'fin',name:'Финансовый департамент',parent:'cu'},
+ {id:'fin-acc',name:'Отдел бухгалтерского учёта',parent:'fin'},
+ {id:'fin-eco',name:'Отдел экономического планирования',parent:'fin'},
+ {id:'hr',name:'Департамент управления персоналом',parent:'cu'},
+ {id:'hr-staff',name:'Отдел кадров',parent:'hr'},
+ {id:'hr-edu',name:'Отдел обучения и развития',parent:'hr'},
+ {id:'law',name:'Юридический департамент',parent:'cu'},
+ {id:'it',name:'Департамент информационных технологий',parent:'cu'},
+ {id:'it-inf',name:'Отдел инфраструктуры',parent:'it'},
+ {id:'it-dev',name:'Отдел разработки',parent:'it'},
+ {id:'hse',name:'Департамент ОТ, ТБ и ООС',parent:'cu'},
+ {id:'adm',name:'Административно-хозяйственный отдел',parent:'cu'}
+];
+const DMAP=Object.fromEntries(DEPTS.map(d=>[d.id,d]));
+const SIZES={'fin-acc':14,'fin-eco':10,'hr-staff':9,'hr-edu':6,'law':8,'it-inf':11,'it-dev':12,'hse':9,'adm':7};
+const POS={
+ 'fin-acc':['Начальник отдела','Бухгалтер','Ведущий бухгалтер','Главный специалист','Бухгалтер-кассир'],
+ 'fin-eco':['Начальник отдела','Экономист','Ведущий экономист','Главный специалист'],
+ 'hr-staff':['Начальник отдела','Специалист по кадрам','Ведущий специалист','Инспектор по кадрам'],
+ 'hr-edu':['Начальник отдела','Специалист по обучению','Менеджер'],
+ 'law':['Директор департамента','Юрист','Ведущий юрист','Главный юрисконсульт'],
+ 'it-inf':['Начальник отдела','Системный администратор','Инженер','Ведущий инженер'],
+ 'it-dev':['Начальник отдела','Программист','Аналитик','Ведущий программист','Тестировщик'],
+ 'hse':['Директор департамента','Инженер по ОТ','Специалист по ТБ','Эколог'],
+ 'adm':['Начальник отдела','Специалист','Делопроизводитель','Водитель']
+};
+const SUR=['Ахметов','Сериков','Нурланов','Жумабеков','Касымов','Оспанов','Байжанов','Тулегенов','Иванов','Петренко','Ким','Мухамедиев','Абдрахманов','Кенжебаев','Есенов','Алиев','Смирнов','Каримов','Бекмуханов','Садыков','Ержанов','Утепов','Нургалиев','Исаев','Шайхин','Дюсенов','Кузнецов','Рахимов','Танирбергенов','Мусин','Сагындыков','Ли','Беков','Жакупов'];
+const INI='АБГДЕЖКМНРСТЭ'.split('');
+const EMPS=(function(){const r=rng(20261009);const out=[];let tab=1001;const pick=a=>a[Math.floor(r()*a.length)];
+ for(const dept of Object.keys(SIZES)){const pos=POS[dept];
+  for(let i=0;i<SIZES[dept];i++){const fem=r()<0.45;let s=pick(SUR);if(fem&&/(ов|ев|ин)$/.test(s))s+='а';
+   out.push({id:'e'+tab,tab:String(tab),fio:s+' '+pick(INI)+'.'+pick(INI)+'.',pos:i===0?pos[0]:pick(pos.slice(1)),dept:dept,off:Math.floor(r()*1000)});
+   tab+=1+Math.floor(r()*37);}}
+ return out})();
+const EMAP=Object.fromEntries(EMPS.map(e=>[e.id,e]));
+
+const USERS={
+ storekeeper:{login:'CORP\\ivanova.a',name:'Иванова А.А.',role:'storekeeper'},
+ admin:{login:'CORP\\petrov.s',name:'Петров С.Н.',role:'admin'},
+ viewer:{login:'CORP\\omarova.g',name:'Омарова Г.Т.',role:'viewer'}
+};
+const HOLIDAY_TPL=[['01-01','Новый год'],['01-02','Новый год'],['01-07','Православное Рождество'],['03-08','Международный женский день'],['03-21','Наурыз мейрамы'],['03-22','Наурыз мейрамы'],['03-23','Наурыз мейрамы'],['05-01','Праздник единства народа Казахстана'],['05-07','День защитника Отечества'],['05-09','День Победы'],['07-06','День Столицы'],['08-30','День Конституции'],['10-25','День Республики'],['12-16','День Независимости']];
+
+/* ================= state ================= */
+const LS='milk-demo-v1';
+let S;
+function load(){try{const raw=localStorage.getItem(LS);if(raw){const s=JSON.parse(raw);if(s&&s.v===1)return s}}catch(e){}return null}
+function save(){reindex();try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+let IDX=new Map();
+function reindex(){IDX=new Map();for(const i of S.issues)if(i.st==='a')IDX.set(i.emp+'|'+i.date,i)}
+function issueOf(eid,date){return IDX.get(eid+'|'+date)||null}
+
+function today(){return S.demoDate||realToday()}
+function user(){return USERS[S.role]}
+function log(action,object,oldv,newv,ts,who){S.journal.push({ts:ts||stamp(),user:who||user().name,action:action,object:object||'',oldv:oldv||'',newv:newv||''})}
+
+function holidaysFor(year){return HOLIDAY_TPL.map(([md,name])=>({date:year+'-'+md,name:name,kind:'Праздник'}))}
+
+function initState(){
+ const td=realToday();const y=+td.slice(0,4);
+ S={v:1,role:'storekeeper',lang:'ru',dept:'fin',demoDate:null,
+  settings:[{from:'2026-01-01',days:[2,5],norm:0.5,by:'Система',ts:'2026-01-01 00:00:00'}],
+  eligible:Object.fromEntries(DEPTS.map(d=>[d.id,true])),
+  holidays:holidaysFor(y).concat([{date:y+'-08-31',name:'Перенос выходного (День Конституции)',kind:'Нерабочий день'},{date:y+'-10-26',name:'Перенос выходного (День Республики)',kind:'Нерабочий день'}]),
+  issues:[],emergencies:[],journal:[],seq:1,
+  skud:{last:Date.now()-3*60000,fail:false,notified:false,errors:[]},
+  sync:{hr:td+' 02:00',abs:td+' '+pad(Math.max(0,new Date().getHours()))+':00',ad:stamp().slice(0,16)},
+  report:null,sort:{key:'fio',dir:1},issueTab:'work'};
+ reindex();
+ /* история выдач: с 1-го числа прошлого месяца по вчера */
+ const d0=new Date();d0.setDate(1);d0.setMonth(d0.getMonth()-1);
+ const start=d0.getFullYear()+'-'+pad(d0.getMonth()+1)+'-01';
+ const days=[];for(let d=start;d<td;d=addDays(d,1))if(isIssueDay(d))days.push(d);
+ if(days.length>=3){const ed=days[days.length-3];
+  S.emergencies.push({id:'m1',date:ed,scope:'hr-staff',listNo:'РС-'+ed.slice(5).replace('-',''),listDate:ed,manager:'Жумабекова А.Т.',file:'spisok_otdel_kadrov.pdf',by:'Петров С.Н.',on:ed+' 09:35',off:ed+' 15:20'});
+  log('Включение аварийного режима','Отдел кадров','','Список №'+S.emergencies[0].listNo+', рук. Жумабекова А.Т.',ed+' 09:35:12','Петров С.Н.');
+  log('Выключение аварийного режима','Отдел кадров','включён','выключен',ed+' 15:20:40','Петров С.Н.');}
+ for(const d of days){for(const e of EMPS){const s=statusOf(e,d);
+  if((s.code==='work'||s.code==='manual')&&hash(e.id,'g',d)<0.93){
+   const base=Math.max(s.pass==null?540:s.pass,540)+10+Math.floor(hash(e.id,'it',d)*240);const time=hm(Math.min(base,1050));
+   S.issues.push({id:S.seq++,emp:e.id,date:d,time:time,vol:0.5,by:'Иванова А.А.',st:'a',basis:s.code==='manual'?'manual':'skud',list:s.em?s.em.id:null});
+   log('Выдача молока',e.tab+' '+e.fio,'',(s.code==='manual'?'0,5 л (ручной список)':'0,5 л'),d+' '+time+':00','Иванова А.А.');}}}
+ /* одна отменённая выдача */
+ const last=days[days.length-1];const cand=S.issues.filter(i=>i.date===last);
+ if(cand.length){const c=cand[Math.floor(cand.length*0.7)];const e=EMAP[c.emp];c.st='c';c.cancelReason='Отметка поставлена ошибочно, сотрудник не подходил';c.cancelBy='Иванова А.А.';c.cancelAt=last+' '+c.time;
+  log('Отмена выдачи',e.tab+' '+e.fio,'выдано '+c.time,'отменено: '+c.cancelReason,last+' '+c.time+':40','Иванова А.А.');}
+ /* часть выдач сегодня — Финансовый департамент */
+ if(isIssueDay(td)){for(const e of empsIn('fin')){const s=statusOf(e,td);
+  if(s.code==='work'&&s.pass!=null&&hash(e.id,'today',td)<0.5){const m=Math.min(nowMin(),Math.max(s.pass+5,540)+Math.floor(hash(e.id,'tt')*60));if(m<=nowMin()&&m>s.pass){
+   const time=hm(m);S.issues.push({id:S.seq++,emp:e.id,date:td,time:time,vol:0.5,by:'Иванова А.А.',st:'a',basis:'skud',list:null});
+   log('Выдача молока',e.tab+' '+e.fio,'','0,5 л',td+' '+time+':00','Иванова А.А.');}}}}
+ log('Синхронизация','1С:ЗУП — сотрудники и структура','','успешно',td+' 02:00:05','Система');
+ save();
+}
+
+/* ================= бизнес-логика ================= */
+function children(id){return DEPTS.filter(d=>d.parent===id)}
+function descendants(id){const out=[id];for(const c of children(id))out.push(...descendants(c.id));return out}
+function depth(id){let n=0,d=DMAP[id];while(d&&d.parent){n++;d=DMAP[d.parent]}return n}
+function eligible(id){let d=DMAP[id];while(d){if(!S.eligible[d.id])return false;d=DMAP[d.parent]}return true}
+function deptPath(id){const p=[];let d=DMAP[id];while(d&&d.parent){p.unshift(d.name);d=DMAP[d.parent]}return p.length?'ЦУ / '+p.join(' / '):'Центральное управление (все подразделения)'}
+function empsIn(id){const set=new Set(descendants(id));return EMPS.filter(e=>set.has(e.dept)&&eligible(e.dept))}
+
+function settingFor(date){const arr=S.settings.slice().sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0);let r=arr[0];for(const s of arr)if(s.from<=date)r=s;return r}
+function holidayOf(date){return S.holidays.find(h=>h.date===date)||null}
+function isIssueWeekday(date){return settingFor(date).days.includes(wd(date))}
+function isIssueDay(date){return isIssueWeekday(date)&&!holidayOf(date)}
+function dayKind(date){if(holidayOf(date))return isIssueWeekday(date)?'holiday':'holidayNo';return isIssueWeekday(date)?'issue':'no'}
+function daysLabel(days){const n=['вс','пн','вт','ср','чт','пт','сб'];return days.slice().sort().map(d=>n[d]).join(', ')}
+
+function absenceOf(e,date){
+ const n=dn(date);
+ const blk=(tag,L,p)=>{const off=e.off%L;const b=Math.floor((n+off)/L);if(hash(e.id,tag,b)<p){const s=b*L-off;return{from:fromDn(s),to:fromDn(s+L-1)}}return null};
+ let r;
+ if((r=blk('v',14,0.06)))return Object.assign({kind:'vacation'},r);
+ if((r=blk('s',6,0.04)))return Object.assign({kind:'sick'},r);
+ if((r=blk('t',4,0.035)))return Object.assign({kind:'trip'},r);
+ if(hash(e.id,'o',n)<0.015)return{kind:'other',from:date,to:date};
+ return null;
+}
+function passOf(e,date){
+ const w=wd(date);if(w===0||w===6)return null;
+ const n=dn(date);if(hash(e.id,'np',n)<0.05)return null;
+ const m=7*60+40+Math.floor(hash(e.id,'tm',n)*100);
+ if(date===realToday()&&m>nowMin())return null;
+ return m;
+}
+function emergencyFor(e,date){return S.emergencies.find(x=>x.date===date&&(date<today()||!x.off)&&descendants(x.scope).includes(e.dept))||null}
+function statusOf(e,date){
+ const ab=absenceOf(e,date),p=passOf(e,date),em=emergencyFor(e,date);
+ let code;if(ab)code=ab.kind;else if(em)code='manual';else if(p!=null)code='work';else code='nopass';
+ return{code:code,ab:ab,pass:p,em:em,issue:issueOf(e.id,date)};
+}
+const COLORS={work:'var(--work)',manual:'var(--manual)',sick:'var(--sick)',vacation:'var(--gray)',trip:'var(--gray)',other:'var(--gray)',nopass:'var(--nopass)',issued:'var(--ok)'};
+function statusHtml(s){
+ let extra='';if(s.ab)extra=s.ab.from===s.ab.to?'':'<small>до '+fmtD(s.ab.to).slice(0,5)+'</small>';
+ return '<span class="status" style="color:'+COLORS[s.code]+'"><i style="background:'+COLORS[s.code]+'"></i>'+esc(t('st_'+s.code))+extra+'</span>';
+}
+function canIssue(e,s){
+ const u=user();const d=today();
+ if(u.role==='viewer')return{ok:false,reason:'Роль «Наблюдатель» — только просмотр отчёта'};
+ if(s.issue)return{ok:false,reason:'Молоко уже выдано в '+s.issue.time};
+ const k=dayKind(d);
+ if(k==='holiday'||k==='holidayNo')return{ok:false,reason:'Праздничный/нерабочий день ('+holidayOf(d).name+') — выдача не производится и не переносится'};
+ if(k==='no')return{ok:false,reason:'Сегодня не день выдачи. Дни выдачи: '+daysLabel(settingFor(d).days)};
+ if(s.ab){const nm={sick:'Больничный',vacation:'Отпуск',trip:'Командировка',other:'Прочее отсутствие'}[s.code];return{ok:false,reason:nm+' по данным 1С/HR ('+fmtD(s.ab.from)+' – '+fmtD(s.ab.to)+'). Отсутствие имеет приоритет над СКУД — выдача запрещена'}}
+ if(s.code==='nopass')return{ok:false,reason:'Нет прохода на вход по СКУД сегодня (в т. ч. если сотрудник забыл пропуск) — выдача запрещена'};
+ return{ok:true};
+}
+function canCancel(i){const u=user();if(!i||i.date!==today()||!isIssueDay(today()))return false;if(u.role==='admin')return true;return u.role==='storekeeper'&&i.by===u.name}
+function skudStale(){return S.skud.fail||Date.now()-S.skud.last>30*60000}
+function activeEmergencies(){return S.emergencies.filter(x=>x.date===today()&&!x.off)}
+
+/* ================= UI helpers ================= */
+function toast(msg,kind){$$('.toast').forEach(x=>x.remove());const d=document.createElement('div');d.className='toast '+(kind||'');d.setAttribute('role','status');d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
+function modal(title,body,actions,wide){
+ const ov=document.createElement('div');ov.className='overlay';
+ ov.innerHTML='<div class="dialog'+(wide?' wide':'')+'" role="dialog" aria-modal="true"><div class="dlg-h"><h3>'+esc(title)+'</h3><button class="x" aria-label="Закрыть">×</button></div><div class="dlg-b">'+body+'</div><div class="dlg-f"></div></div>';
+ const close=()=>{ov.remove();document.removeEventListener('keydown',onKey)};
+ const onKey=e=>{if(e.key==='Escape')close()};
+ document.addEventListener('keydown',onKey);
+ ov.addEventListener('mousedown',e=>{if(e.target===ov)close()});
+ $('.x',ov).onclick=close;
+ const f=$('.dlg-f',ov);
+ (actions||[{label:'Закрыть',cls:''}]).forEach(a=>{const b=document.createElement('button');b.className='btn '+(a.cls||'');b.textContent=a.label;b.onclick=()=>{if(a.onClick){if(a.onClick(ov,close)!==false)close()}else close()};f.appendChild(b)});
+ document.body.appendChild(ov);
+ const first=$('input,textarea,select',ov);if(first)first.focus();
+ return ov;
+}
+function closePop(){$$('.popmenu').forEach(x=>x.remove())}
+document.addEventListener('mousedown',e=>{if(!e.target.closest('.popmenu')&&!e.target.closest('.menu-btn'))closePop();
+ if(!e.target.closest('.combo')){const p=$('.combo-panel');if(p)p.hidden=true}});
+
+/* ================= routing & shell ================= */
+let CUR=location.hash;
+function route(){const h=CUR.replace(/^#\/?/,'').split('/');return{page:h[0]||'',sub:h[1]||''}}
+function go(hash){CUR=hash;try{history.pushState(null,'',hash)}catch(e){}closePop();render();window.scrollTo(0,0)}
+document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#/"]');if(a){e.preventDefault();go(a.getAttribute('href'))}});
+window.addEventListener('popstate',()=>{CUR=location.hash;render()});
+function allowed(page){const r=S.role;if(page==='issue')return r!=='viewer';if(page==='admin')return r==='admin';if(page==='report')return true;return false}
+function render(){
+ let r=route();
+ if(!allowed(r.page)){const def=S.role==='viewer'?'report':'issue';CUR='#/'+def;try{history.replaceState(null,'',CUR)}catch(e){}r={page:def,sub:''}}
+ document.documentElement.lang=S.lang==='kz'?'kk':'ru';
+ renderDemo();renderTop();renderNav(r.page);
+ if(r.page==='issue')renderIssue();else if(r.page==='report')renderReport();else renderAdmin(r.sub||'emergency');
+}
+window.addEventListener('hashchange',()=>{if(location.hash!==CUR){CUR=location.hash;closePop();render()}});
+
+function renderDemo(){
+ $('#demobar').innerHTML='<b>Демо-режим</b><span>вход через AD имитируется выбором пользователя</span>'+
+ '<label>Пользователь <select id="dRole">'+Object.values(USERS).map(u=>'<option value="'+u.role+'"'+(u.role===S.role?' selected':'')+'>'+esc(u.name)+' — '+esc(I18N.ru['role_'+u.role])+'</option>').join('')+'</select></label>'+
+ '<label>Дата <input type="date" id="dDate" value="'+today()+'"></label>'+(S.demoDate?'<button id="dDateReset">Сегодня</button>':'')+
+ '<span class="sp"></span><button id="dReset">Сбросить демо-данные</button>';
+ $('#dRole').onchange=e=>{S.role=e.target.value;save();render()};
+ $('#dDate').onchange=e=>{const v=e.target.value;S.demoDate=(v&&v!==realToday())?v:null;save();render()};
+ const dr=$('#dDateReset');if(dr)dr.onclick=()=>{S.demoDate=null;save();render()};
+ $('#dReset').onclick=()=>modal('Сбросить демо-данные?','<p>Все выдачи, настройки и журнал будут сгенерированы заново.</p>',[{label:'Отмена'},{label:'Сбросить',cls:'btn-danger',onClick:()=>{try{localStorage.removeItem(LS)}catch(e){}initState();render();toast('Демо-данные сброшены','ok')}}]);
+}
+function renderTop(){
+ const d=today(),k=dayKind(d),u=user();
+ const badge=k==='issue'?'<span class="daybadge yes"><i></i>'+t('issueDay')+'</span>':(k==='holiday'||k==='holidayNo')?'<span class="daybadge hol"><i></i>'+t('holiday')+'</span>':'<span class="daybadge no"><i></i>'+t('noIssueDay')+'</span>';
+ const lu=new Date(S.skud.last);const stale=skudStale();
+ $('#top').innerHTML='<div class="brand"><div class="logo" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1F3A5F" stroke-width="1.8" stroke-linejoin="round"><path d="M9 2h6v3l2 3v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8l2-3z"/><path d="M7 12h10"/><path d="M9 5h6"/></svg></div><h1>'+esc(t('app'))+'<small>'+esc(t('sub'))+'</small></h1></div>'+
+ '<span class="sp"></span><div class="hinfo">'+
+ '<span><b>'+t('wd')[wd(d)]+', '+fmtD(d)+'</b></span>'+badge+
+ '<span class="skud'+(stale?' stale':'')+'" title="Автообновление каждые 5 минут">'+(stale?'⚠ ':'')+esc(t('skudUpd'))+' '+pad(lu.getHours())+':'+pad(lu.getMinutes())+(S.role!=='viewer'?' <button class="iconbtn" id="btnRefresh" title="'+esc(t('refresh'))+'" aria-label="'+esc(t('refresh'))+'">⟳</button>':'')+'</span>'+
+ '<span class="user"><b>'+esc(u.name)+'</b><span>'+esc(t('role_'+u.role))+' · '+esc(u.login)+'</span></span>'+
+ '<span class="lang" role="group" aria-label="Язык"><button data-lang="ru" class="'+(S.lang==='ru'?'on':'')+'">РУС</button><button data-lang="kz" class="'+(S.lang==='kz'?'on':'')+'">ҚАЗ</button></span></div>';
+ $$('.lang button').forEach(b=>b.onclick=()=>{S.lang=b.dataset.lang;save();render()});
+ const rb=$('#btnRefresh');if(rb)rb.onclick=refreshSkud;
+}
+function renderNav(page){
+ const items=[];if(allowed('issue'))items.push(['issue',t('navIssue')]);items.push(['report',t('navReport')]);if(allowed('admin'))items.push(['admin',t('navAdmin')]);
+ $('#nav').innerHTML=items.map(([k,l])=>'<a href="#/'+k+'" class="'+(page===k?'on':'')+'">'+esc(l)+'</a>').join('');
+}
+function refreshSkud(){
+ if(S.skud.fail){S.skud.errors.unshift(stamp()+' — ошибка запроса к API СКУД (таймаут)');log('Ошибка синхронизации','СКУД','','таймаут','', 'Система');save();toast('СКУД не отвечает. Показаны последние полученные данные.','err');render();return}
+ S.skud.last=Date.now();S.skud.notified=false;save();render();toast('Данные СКУД обновлены','ok');
+}
+function checkSkudFailure(){
+ if(skudStale()&&!S.skud.notified){S.skud.notified=true;log('Уведомление о сбое СКУД','e-mail администратору','','отправлено','','Система');save()}
+}
+
+/* ================= главный экран выдачи ================= */
+function renderIssue(){
+ const d=today(),k=dayKind(d),u=user(),stale=skudStale(),ems=activeEmergencies();
+ const prevQ=($('#q')||{value:''}).value;
+ if(!eligible(S.dept))S.dept='cu';
+ let banners='';
+ if(stale){checkSkudFailure();
+  banners+='<div class="banner err"><div><b>Данные СКУД недоступны.</b> Последнее обновление: '+new Date(S.skud.last).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+'. Показаны последние полученные данные. '+
+  (u.role==='admin'?'Включите аварийный режим, если выдача проводится по ручному списку.':'Обратитесь к администратору для включения аварийного режима. Уведомление администратору отправлено.')+'</div><span class="sp"></span>'+
+  (u.role==='admin'?'<a class="btn btn-primary" href="#/admin/emergency">Аварийный режим</a>':'')+'</div>';}
+ for(const em of ems)banners+='<div class="banner manual"><div><b>Аварийный режим</b> — '+esc(em.scope==='cu'?'все подразделения ЦУ':DMAP[em.scope].name)+'. Выдача по ручному списку № '+esc(em.listNo)+' от '+fmtD(em.listDate)+' (подписал '+esc(em.manager)+'). Выдача недоступна только сотрудникам с отсутствием в 1С/HR.</div></div>';
+ if(k==='no')banners+='<div class="banner info"><div><b>Сегодня не день выдачи.</b> Экран работает в режиме просмотра. Дни выдачи: '+daysLabel(settingFor(d).days)+', норма '+liters(settingFor(d).norm)+' л.</div></div>';
+ if(k==='holiday')banners+='<div class="banner warn"><div><b>Праздничный/нерабочий день — '+esc(holidayOf(d).name)+'.</b> Выдача не производится и не переносится.</div></div>';
+ if(k==='holidayNo')banners+='<div class="banner info"><div><b>Нерабочий день — '+esc(holidayOf(d).name)+'.</b> Режим просмотра.</div></div>';
+
+ $('#main').innerHTML=banners+
+ '<div class="toolbar"><div class="field" style="flex:1 1 420px;min-width:0"><span>'+esc(t('dept'))+'</span><div class="combo" id="combo"><button class="combo-btn" id="comboBtn" aria-haspopup="listbox">'+esc(deptPath(S.dept))+'</button><div class="combo-panel" hidden><input class="input" id="comboQ" placeholder="Поиск подразделения" autocomplete="off"><div class="combo-list" role="listbox"></div></div></div></div>'+
+ '<label class="field grow"><span>'+esc(t('search'))+'</span><input class="input" id="q" type="search" autocomplete="off" placeholder="Например: Ахметов или 1045"></label></div>'+
+ '<div id="counters"></div><div class="chips" id="chips"></div><div id="list"></div><div id="others"></div>'+
+ '<div class="legend">'+['work','manual','sick','vacation','trip','other','nopass'].map(c=>'<span class="status" style="color:'+COLORS[c]+';font-weight:400"><i style="background:'+COLORS[c]+'"></i>'+esc(t('st_'+c))+'</span>').join('')+'<span class="done" style="font-weight:400">✓ '+esc(t('st_issued'))+'</span></div>';
+
+ // combo
+ const btn=$('#comboBtn'),panel=$('.combo-panel'),q=$('#comboQ');
+ const fill=()=>{const s=q.value.trim().toLowerCase();
+  $('.combo-list').innerHTML=DEPTS.filter(x=>eligible(x.id)).filter(x=>!s||x.name.toLowerCase().includes(s)).map(x=>'<button class="combo-item'+(x.id===S.dept?' on':'')+'" data-id="'+x.id+'" style="padding-left:'+(10+depth(x.id)*18)+'px">'+esc(x.id==='cu'?'Центральное управление (все)':x.name)+'</button>').join('')||'<div class="empty">Не найдено</div>';
+  $$('.combo-item').forEach(b=>b.onclick=()=>{S.dept=b.dataset.id;save();panel.hidden=true;btn.textContent=deptPath(S.dept);updateIssue()})};
+ btn.onclick=()=>{panel.hidden=!panel.hidden;if(!panel.hidden){q.value='';fill();q.focus()}};
+ q.oninput=fill;
+ $('#q').value=prevQ;
+ $('#q').oninput=updateIssue;
+ updateIssue();
+}
+function updateIssue(){
+ const d=today();const qv=($('#q')||{value:''}).value.trim().toLowerCase();
+ const emps=empsIn(S.dept);
+ const rows=emps.map(e=>({e:e,s:statusOf(e,d)}));
+ const atWork=rows.filter(r=>r.s.code==='work'||r.s.code==='manual');
+ const issuedN=rows.filter(r=>r.s.issue).length;
+ const left=atWork.filter(r=>!r.s.issue).length;
+ const c=[[t('total'),rows.length,''],[t('atWork'),atWork.length,'c-work'],[t('issued'),issuedN,'c-ok'],[t('left'),dayKind(d)==='issue'?left:'—','c-left'],[t('absent'),rows.length-atWork.length,'c-abs']];
+ $('#counters').innerHTML='<div class="counters">'+c.map(x=>'<div class="counter '+x[2]+'"><b>'+x[1]+'</b><span>'+esc(x[0])+'</span></div>').join('')+'</div>';
+ const tabs=[['work',t('atWork'),atWork.length],['issued',t('issued'),issuedN],['absent',t('absent'),rows.length-atWork.length],['all',t('all'),rows.length]];
+ $('#chips').innerHTML=tabs.map(x=>'<button class="chip'+(S.issueTab===x[0]?' on':'')+'" data-tab="'+x[0]+'">'+esc(x[1])+'<em>'+x[2]+'</em></button>').join('');
+ $$('#chips .chip').forEach(b=>b.onclick=()=>{S.issueTab=b.dataset.tab;save();updateIssue()});
+ let list=rows.filter(r=>{const w=r.s.code==='work'||r.s.code==='manual';
+  if(S.issueTab==='work')return w;if(S.issueTab==='issued')return !!r.s.issue;if(S.issueTab==='absent')return !w;return true});
+ if(qv)list=list.filter(r=>r.e.fio.toLowerCase().includes(qv)||r.e.tab.includes(qv));
+ const rank=r=>{const w=r.s.code==='work'||r.s.code==='manual';return w&&!r.s.issue?0:r.s.issue?1:2};
+ list.sort((a,b)=>rank(a)-rank(b)||a.e.fio.localeCompare(b.e.fio,'ru'));
+ $('#list').innerHTML=issueTable(list,false);
+ // FR-13: глобальный поиск по таб. № в других подразделениях
+ let oth='';
+ if(/^\d{3,}$/.test(qv)){const inDept=new Set(emps.map(e=>e.id));
+  const found=EMPS.filter(e=>!inDept.has(e.id)&&eligible(e.dept)&&e.tab.includes(qv)).slice(0,10).map(e=>({e:e,s:statusOf(e,d)}));
+  if(found.length)oth='<div class="sectiontitle"><h2>'+esc(t('otherDepts'))+'</h2><span class="muted small">Выдача сотруднику, подошедшему не со своим подразделением. Правила БП-4–БП-7 действуют.</span></div>'+issueTable(found,true);}
+ $('#others').innerHTML=oth;
+ bindRowActions();
+}
+function issueTable(list,showDept){
+ if(!list.length)return '<div class="tablewrap"><div class="empty">'+esc(t('empty'))+'</div></div>';
+ const manualEm=user().role!=='viewer';
+ return '<div class="tablewrap"><table><thead><tr><th>'+esc(t('tab'))+'</th><th>'+esc(t('fio'))+'</th><th>'+esc(t('pos'))+'</th>'+(showDept?'<th>'+esc(t('dept'))+'</th>':'')+'<th>'+esc(t('status'))+'</th><th class="c">'+esc(t('pass'))+'</th><th style="width:190px">'+esc(t('action'))+'</th></tr></thead><tbody>'+
+ list.map(r=>{const e=r.e,s=r.s;let act;
+  if(s.issue){act='<div class="actcell"><span class="done"><span class="ck" aria-hidden="true">✓</span>'+s.issue.time+(s.issue.basis==='manual'?' <span class="tag manual">ручн.</span>':'')+'</span>'+(canCancel(s.issue)?'<button class="menu-btn" data-menu="'+e.id+'" aria-label="Действия">⋯</button>':'')+'</div>'}
+  else{const c=canIssue(e,s);
+   if(c.ok)act='<button class="btn '+(s.code==='manual'?'btn-manual':'btn-issue')+'" data-issue="'+e.id+'">'+esc(t('give'))+'</button>';
+   else if(s.code==='work'||s.code==='manual')act='<span title="'+esc(c.reason)+'"><button class="btn" disabled>'+esc(t('give'))+'</button></span>';
+   else act='<span title="'+esc(c.reason)+'" class="muted" style="cursor:help">— <span class="small">почему?</span></span>';}
+  return '<tr><td class="tabno">'+e.tab+'</td><td>'+esc(e.fio)+'</td><td>'+esc(e.pos)+'</td>'+(showDept?'<td class="small">'+esc(DMAP[e.dept].name)+'</td>':'')+'<td>'+statusHtml(s)+'</td><td class="c">'+(s.pass!=null?hm(s.pass):'—')+'</td><td>'+act+'</td></tr>'}).join('')+'</tbody></table></div>';
+}
+function bindRowActions(){
+ $$('[data-issue]').forEach(b=>b.onclick=()=>doIssue(EMAP[b.dataset.issue]));
+ $$('[data-menu]').forEach(b=>b.onclick=ev=>{closePop();const r=b.getBoundingClientRect();const m=document.createElement('div');m.className='popmenu';
+  m.style.top=(window.scrollY+r.bottom+4)+'px';m.style.left=Math.max(8,window.scrollX+r.right-210)+'px';
+  m.innerHTML='<button>'+esc(t('cancelIssue'))+'…</button>';document.body.appendChild(m);
+  $('button',m).onclick=()=>{closePop();cancelDialog(EMAP[b.dataset.menu])}});
+}
+function doIssue(e){
+ const d=today();const s=statusOf(e,d);const c=canIssue(e,s);
+ if(!c.ok){toast(c.reason,'err');return}
+ const set=settingFor(d);
+ const rec={id:S.seq++,emp:e.id,date:d,time:nowHM(),vol:set.norm,by:user().name,st:'a',basis:s.code==='manual'?'manual':'skud',list:s.em?s.em.id:null};
+ S.issues.push(rec);
+ log('Выдача молока',e.tab+' '+e.fio,'',liters(set.norm)+' л'+(rec.basis==='manual'?' (ручной список №'+s.em.listNo+')':''));
+ save();updateIssue();toast('✓ '+e.fio+' — молоко выдано в '+rec.time,'ok');
+}
+function cancelDialog(e){
+ const i=issueOf(e.id,today());if(!i||!canCancel(i))return;
+ modal(t('cancelIssue'),'<p style="margin-top:0"><b>'+esc(e.fio)+'</b> (таб. № '+e.tab+'), выдано в '+i.time+'.</p><label class="field"><span>Причина отмены (обязательно)</span><textarea class="input" id="cr" rows="3" placeholder="Например: отметка поставлена не тому сотруднику"></textarea></label><div class="err-text" id="crErr"></div>',
+ [{label:'Не отменять'},{label:'Отменить выдачу',cls:'btn-danger',onClick:ov=>{const v=$('#cr',ov).value.trim();if(v.length<3){$('#crErr',ov).textContent='Укажите причину отмены';return false}
+  i.st='c';i.cancelReason=v;i.cancelBy=user().name;i.cancelAt=stamp().slice(0,16);
+  log('Отмена выдачи',e.tab+' '+e.fio,'выдано '+i.time,'отменено: '+v);save();updateIssue();toast('Выдача отменена и записана в журнал')}}]);
+}
+
+/* ================= отчёт ================= */
+function monthRange(off){const d=new Date(today()+'T00:00:00');d.setDate(1);d.setMonth(d.getMonth()+off);const y=d.getFullYear(),m=d.getMonth();const last=new Date(y,m+1,0).getDate();return[y+'-'+pad(m+1)+'-01',y+'-'+pad(m+1)+'-'+pad(last)]}
+function reportFilter(){if(!S.report){const r=monthRange(0);S.report={from:r[0],to:r[1],dept:'cu',q:'',manual:false}}return S.report}
+const REASONS=[['sick','Больн.'],['vacation','Отпуск'],['trip','Команд.'],['other','Прочее'],['nopass','Нет прохода'],['notTaken','На работе, не получил']];
+function reportData(f){
+ const days=[],excluded=[];const end=f.to<today()?f.to:today();
+ if(f.from&&f.to)for(let d=f.from;d<=end;d=addDays(d,1)){if(isIssueWeekday(d)){if(holidayOf(d))excluded.push(d);else days.push(d)}}
+ let emps=eligible(f.dept)?empsIn(f.dept):[];const q=(f.q||'').trim().toLowerCase();
+ if(q)emps=emps.filter(e=>e.fio.toLowerCase().includes(q)||e.tab.includes(q));
+ let rows=emps.map(e=>{const r={e:e,days:days.length,issued:0,vol:0,manual:0,sick:0,vacation:0,trip:0,other:0,nopass:0,notTaken:0};
+  for(const d of days){const i=issueOf(e.id,d);if(i){r.issued++;r.vol+=i.vol;if(i.basis==='manual')r.manual++}else{const s=statusOf(e,d);const k=['sick','vacation','trip','other','nopass'].includes(s.code)?s.code:'notTaken';r[k]++}}
+  return r});
+ if(f.manual)rows=rows.filter(r=>r.manual>0);
+ return{days:days,excluded:excluded,rows:rows};
+}
+function renderReport(){
+ const f=reportFilter();
+ const depOpts=DEPTS.filter(x=>eligible(x.id)).map(x=>'<option value="'+x.id+'"'+(x.id===f.dept?' selected':'')+'>'+'   '.repeat(depth(x.id))+esc(x.id==='cu'?'Центральное управление (все)':x.name)+'</option>').join('');
+ $('#main').innerHTML='<div class="page-h"><h2>Отчёт по выдаче молока</h2><span class="sp"></span><button class="btn" disabled title="Выгрузка в Excel запланирована на следующий этап (FR-27)">Выгрузить в Excel · следующий этап</button></div>'+
+ '<div class="panel"><div class="row">'+
+ '<label class="field"><span>Период с</span><input class="input" type="date" id="rFrom" value="'+f.from+'"></label>'+
+ '<label class="field"><span>по</span><input class="input" type="date" id="rTo" value="'+f.to+'"></label>'+
+ '<button class="btn" id="rCur">Текущий месяц</button><button class="btn" id="rPrev">Прошлый месяц</button>'+
+ '<label class="field" style="flex:1 1 260px"><span>Подразделение (с вложенными)</span><select class="input" id="rDept">'+depOpts+'</select></label>'+
+ '<label class="field" style="flex:1 1 200px"><span>Сотрудник</span><input class="input" type="search" id="rQ" value="'+esc(f.q)+'" placeholder="ФИО или таб. №"></label>'+
+ '<label class="checks"><label class="'+(f.manual?'on':'')+'"><input type="checkbox" id="rMan"'+(f.manual?' checked':'')+'> Только «По ручному списку»</label></label>'+
+ '</div></div><div id="rOut"></div>';
+ const upd=()=>{f.from=$('#rFrom').value;f.to=$('#rTo').value;f.dept=$('#rDept').value;f.q=$('#rQ').value;f.manual=$('#rMan').checked;save();renderReportOut()};
+ ['rFrom','rTo','rDept'].forEach(id=>$('#'+id).onchange=upd);
+ $('#rQ').oninput=upd;$('#rMan').onchange=()=>{upd();$('#rMan').parentNode.classList.toggle('on',f.manual)};
+ $('#rCur').onclick=()=>{const r=monthRange(0);$('#rFrom').value=r[0];$('#rTo').value=r[1];upd()};
+ $('#rPrev').onclick=()=>{const r=monthRange(-1);$('#rFrom').value=r[0];$('#rTo').value=r[1];upd()};
+ renderReportOut();
+}
+function renderReportOut(){
+ const f=reportFilter();
+ if(!f.from||!f.to||f.from>f.to){$('#rOut').innerHTML='<div class="banner warn">Укажите корректный период.</div>';return}
+ const t0=performance.now();
+ const R=reportData(f);const so=S.sort;
+ const cols=[['tab','Таб. №',''],['fio','ФИО',''],['pos','Должность',''],['days','Дней выдачи','num'],['issued','Выдач','num'],['vol','Объём, л','num']].concat(REASONS.map(r=>[r[0],r[1],'num'])).concat([['manual','По ручн. списку','num']]);
+ const val=(r,k)=>k==='tab'?+r.e.tab:k==='fio'?r.e.fio:k==='pos'?r.e.pos:r[k];
+ const cmp=(a,b)=>{const x=val(a,so.key),y=val(b,so.key);return (typeof x==='string'?x.localeCompare(y,'ru'):x-y)*so.dir};
+ const groups=[];for(const d of DEPTS){const g=R.rows.filter(r=>r.e.dept===d.id);if(g.length)groups.push([d,g.sort(cmp)])}
+ const sum=rows=>{const s={days:0,issued:0,vol:0,manual:0};REASONS.forEach(r=>s[r[0]]=0);rows.forEach(r=>{for(const k in s)s[k]+=r[k]});return s};
+ const numCells=s=>'<td class="num">'+s.days+'</td><td class="num"><b>'+s.issued+'</b></td><td class="num">'+liters(s.vol)+'</td>'+REASONS.map(r=>'<td class="num">'+(s[r[0]]||'<span class="muted">0</span>')+'</td>').join('')+'<td class="num">'+(s.manual?'<span class="tag manual">'+s.manual+'</span>':'<span class="muted">0</span>')+'</td>';
+ const tot=sum(R.rows);
+ let html='<div class="banner info" style="margin-bottom:12px"><div>Период <b>'+fmtD(f.from)+' – '+fmtD(f.to)+'</b> · дней выдачи: <b>'+R.days.length+'</b>'+(R.excluded.length?' · исключены праздничные: '+R.excluded.map(fmtD).join(', '):'')+(f.to>today()?' · будущие дни не учитываются':'')+' · сотрудников: <b>'+R.rows.length+'</b> · всего выдач: <b>'+tot.issued+'</b> · <b>'+liters(tot.vol)+' л</b></div></div>';
+ if(!R.rows.length){$('#rOut').innerHTML=html+'<div class="tablewrap"><div class="empty">Нет данных по выбранным фильтрам</div></div>';return}
+ html+='<div class="tablewrap" style="max-height:70vh;overflow:auto"><table><thead><tr>'+cols.map(c=>'<th class="sortable '+c[2]+'" data-sort="'+c[0]+'">'+esc(c[1])+(so.key===c[0]?'<span class="arr">'+(so.dir>0?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr></thead><tbody>';
+ for(const [d,g] of groups){
+  html+='<tr class="group"><td colspan="'+cols.length+'">'+esc(deptPath(d.id))+'</td></tr>';
+  html+=g.map(r=>'<tr class="clickable" data-emp="'+r.e.id+'" title="Открыть детальный вид"><td class="tabno">'+r.e.tab+'</td><td><a href="javascript:void 0">'+esc(r.e.fio)+'</a></td><td class="small">'+esc(r.e.pos)+'</td>'+numCells(r)+'</tr>').join('');
+  html+='<tr class="subtotal"><td colspan="3">Итого по подразделению</td>'+numCells(sum(g))+'</tr>';
+ }
+ html+='<tr class="total"><td colspan="3">ИТОГО</td>'+numCells(tot).replace(/<span class="(muted|tag manual)">/g,'<span>')+'</tr></tbody></table></div>'+
+ '<p class="muted small">Нажмите на сотрудника, чтобы открыть детальный вид. Отменённые выдачи в отчёт не попадают. Сформировано за '+Math.max(1,Math.round(performance.now()-t0))+' мс.</p>';
+ $('#rOut').innerHTML=html;
+ $$('#rOut th.sortable').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(S.sort.key===k)S.sort.dir*=-1;else S.sort={key:k,dir:1};save();renderReportOut()});
+ $$('#rOut tr[data-emp]').forEach(tr=>tr.onclick=()=>detailDialog(EMAP[tr.dataset.emp],R.days));
+}
+function detailDialog(e,days){
+ let iss=0,vol=0;
+ const rows=days.map(d=>{const i=issueOf(e.id,d);const s=statusOf(e,d);const all=S.issues.filter(x=>x.emp===e.id&&x.date===d&&x.st==='c');
+  if(i){iss++;vol+=i.vol}
+  let basis='';if(i&&i.basis==='manual'){const em=S.emergencies.find(x=>x.id===i.list);basis='<span class="tag manual">По ручному списку'+(em?' № '+esc(em.listNo)+' от '+fmtD(em.listDate):'')+'</span>'}else if(i)basis='<span class="tag">СКУД</span>';
+  return '<tr><td>'+I18N.ru.wd[wd(d)]+', '+fmtD(d)+'</td><td>'+statusHtml(s)+'</td><td>'+(i?'<span class="done">✓ Выдано</span>':'<span class="muted">Не выдано</span>')+(all.length?'<div class="small muted">отменено: '+esc(all[0].cancelReason)+'</div>':'')+'</td><td class="c">'+(i?i.time:'—')+'</td><td>'+(i?esc(i.by):'—')+'</td><td>'+basis+'</td></tr>'}).join('');
+ modal(e.fio+' · таб. № '+e.tab,'<p class="muted" style="margin-top:0">'+esc(e.pos)+' · '+esc(deptPath(e.dept))+'</p>'+
+ '<div class="tablewrap" style="max-height:60vh;overflow:auto"><table><thead><tr><th>Дата</th><th>Статус в день выдачи</th><th>Выдача</th><th class="c">Время</th><th>Кто выдал</th><th>Основание</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="empty">В периоде нет дней выдачи</td></tr>')+
+ '</tbody></table></div><p><b>Итого:</b> выдач '+iss+' из '+days.length+', '+liters(vol)+' л</p>',null,true);
+}
+
+/* ================= администрирование ================= */
+const ADMIN_TABS=[['emergency','Аварийный режим'],['settings','Дни выдачи и норма'],['depts','Подразделения'],['calendar','Производственный календарь'],['integrations','Интеграции'],['journal','Журнал действий']];
+function renderAdmin(sub){
+ if(!ADMIN_TABS.some(x=>x[0]===sub))sub='emergency';
+ $('#main').innerHTML='<div class="layout"><nav class="sidenav">'+ADMIN_TABS.map(x=>'<a href="#/admin/'+x[0]+'" class="'+(x[0]===sub?'on':'')+'">'+esc(x[1])+'</a>').join('')+'</nav><section id="adm"></section></div>';
+ ({emergency:admEmergency,settings:admSettings,depts:admDepts,calendar:admCalendar,integrations:admIntegrations,journal:admJournal})[sub]();
+}
+function admEmergency(){
+ const d=today(),ems=activeEmergencies(),stale=skudStale();
+ const opts=DEPTS.filter(x=>eligible(x.id)).map(x=>'<option value="'+x.id+'">'+'   '.repeat(depth(x.id))+esc(x.id==='cu'?'Все подразделения ЦУ':x.name)+'</option>').join('');
+ $('#adm').innerHTML='<div class="page-h"><h2>Аварийный режим (сбой СКУД)</h2></div>'+
+ (stale?'<div class="banner err"><div><b>СКУД недоступен</b> с '+new Date(S.skud.last).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+'. Выдачу можно проводить по ручному списку, подписанному руководителем подразделения.</div></div>':'<div class="banner ok"><div>СКУД работает штатно. Аварийный режим включается только при сбое СКУД.</div></div>')+
+ '<div class="card"><h3>Включить на '+fmtD(d)+'</h3><div class="grid2">'+
+ '<label class="field"><span>Подразделение</span><select class="input" id="eScope">'+opts+'</select></label>'+
+ '<label class="field"><span>Номер ручного списка *</span><input class="input" id="eNo" placeholder="РС-001"></label>'+
+ '<label class="field"><span>Дата списка *</span><input class="input" type="date" id="eDate" value="'+d+'"></label>'+
+ '<label class="field"><span>ФИО руководителя, подписавшего список *</span><input class="input" id="eMgr" placeholder="Фамилия И.О."></label>'+
+ '<label class="field" style="grid-column:1/-1"><span>Скан/фото списка (необязательно; PDF, JPG, PNG до 10 МБ)</span><input class="input" type="file" id="eFile" accept=".pdf,.jpg,.jpeg,.png" style="padding-top:7px"></label>'+
+ '</div><div class="err-text" id="eErr"></div><button class="btn btn-primary" id="eOn">Включить аварийный режим</button></div>'+
+ '<div class="sectiontitle"><h2>Активные сегодня</h2></div>'+emTable(ems,true)+
+ '<div class="sectiontitle"><h2>История</h2></div>'+emTable(S.emergencies.filter(x=>!ems.includes(x)).slice().reverse(),false);
+ $('#eOn').onclick=()=>{const no=$('#eNo').value.trim(),ld=$('#eDate').value,mgr=$('#eMgr').value.trim(),scope=$('#eScope').value,f=$('#eFile').files[0];
+  if(!no||!ld||!mgr){$('#eErr').textContent='Заполните номер и дату списка и ФИО руководителя';return}
+  if(f&&(f.size>10*1024*1024||!/\.(pdf|jpe?g|png)$/i.test(f.name))){$('#eErr').textContent='Файл должен быть PDF, JPG или PNG не более 10 МБ';return}
+  const em={id:'m'+(S.seq++),date:d,scope:scope,listNo:no,listDate:ld,manager:mgr,file:f?f.name:'',by:user().name,on:stamp().slice(0,16),off:null};
+  S.emergencies.push(em);log('Включение аварийного режима',scope==='cu'?'Все подразделения ЦУ':DMAP[scope].name,'','Список №'+no+' от '+fmtD(ld)+', рук. '+mgr+(em.file?', скан: '+em.file:''));save();render();toast('Аварийный режим включён','ok')};
+ bindEmOff();
+}
+function emTable(list,active){
+ if(!list.length)return '<div class="tablewrap"><div class="empty">Нет записей</div></div>';
+ return '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>Подразделение</th><th>Список</th><th>Руководитель</th><th>Скан</th><th>Включил</th><th>Период</th><th></th></tr></thead><tbody>'+
+ list.map(x=>'<tr><td>'+fmtD(x.date)+'</td><td>'+esc(x.scope==='cu'?'Все подразделения ЦУ':DMAP[x.scope].name)+'</td><td>№ '+esc(x.listNo)+' от '+fmtD(x.listDate)+'</td><td>'+esc(x.manager)+'</td><td>'+(x.file?esc(x.file):'<span class="muted">—</span>')+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.on.slice(11))+' – '+(x.off?esc(x.off.slice(11)):'<span class="tag manual">активен</span>')+'</td><td>'+(active?'<button class="btn btn-sm" data-off="'+x.id+'">Выключить</button>':'')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+function bindEmOff(){$$('[data-off]').forEach(b=>b.onclick=()=>{const x=S.emergencies.find(e=>e.id===b.dataset.off);
+ modal('Выключить аварийный режим?','<p>Выдачи, сделанные по ручному списку № '+esc(x.listNo)+', сохранятся и не будут пересчитаны.</p>',[{label:'Отмена'},{label:'Выключить',cls:'btn-primary',onClick:()=>{x.off=stamp().slice(0,16);log('Выключение аварийного режима',x.scope==='cu'?'Все подразделения ЦУ':DMAP[x.scope].name,'включён','выключен');save();render();toast('Аварийный режим выключен')}}])})}
+
+function admSettings(){
+ const cur=settingFor(today());const tm=addDays(today(),1);const names=['Пн','Вт','Ср','Чт','Пт'];
+ $('#adm').innerHTML='<div class="page-h"><h2>Дни выдачи и норма</h2></div>'+
+ '<div class="panel">Действует сейчас: <b>'+daysLabel(cur.days)+'</b>, норма <b>'+liters(cur.norm)+' л</b> на сотрудника за выдачу (с '+fmtD(cur.from)+').</div>'+
+ '<div class="card"><h3>Новые параметры</h3><div class="field" style="margin-bottom:12px"><span>Дни выдачи (ровно 2)</span><div class="checks">'+names.map((n,i)=>'<label class="'+(cur.days.includes(i+1)?'on':'')+'"><input type="checkbox" value="'+(i+1)+'"'+(cur.days.includes(i+1)?' checked':'')+'> '+n+'</label>').join('')+'</div></div>'+
+ '<div class="row"><label class="field"><span>Норма, л</span><input class="input" type="number" step="0.1" min="0.1" max="5" id="sNorm" value="'+cur.norm+'" style="width:120px"></label>'+
+ '<label class="field"><span>Действует с</span><input class="input" type="date" id="sFrom" value="'+tm+'" min="'+tm+'"></label><button class="btn btn-primary" id="sSave">Сохранить</button></div><div class="err-text" id="sErr"></div></div>'+
+ '<div class="sectiontitle"><h2>История изменений</h2></div><div class="tablewrap"><table><thead><tr><th>Действует с</th><th>Дни</th><th class="num">Норма, л</th><th>Кто изменил</th><th>Когда</th></tr></thead><tbody>'+
+ S.settings.slice().sort((a,b)=>a.from<b.from?1:-1).map(s=>'<tr><td>'+fmtD(s.from)+'</td><td>'+daysLabel(s.days)+'</td><td class="num">'+liters(s.norm)+'</td><td>'+esc(s.by)+'</td><td>'+esc(s.ts.slice(0,16))+'</td></tr>').join('')+'</tbody></table></div>';
+ $$('#adm .checks input').forEach(c=>c.onchange=()=>c.parentNode.classList.toggle('on',c.checked));
+ $('#sSave').onclick=()=>{const days=$$('#adm .checks input:checked').map(c=>+c.value);const norm=parseFloat($('#sNorm').value);const from=$('#sFrom').value;
+  if(days.length!==2){$('#sErr').textContent='Выберите ровно два дня недели';return}
+  if(!(norm>0)){$('#sErr').textContent='Укажите норму больше 0';return}
+  if(!from||from<=today()){$('#sErr').textContent='Дата начала действия — не раньше завтрашнего дня';return}
+  const old=settingFor(from);S.settings=S.settings.filter(s=>s.from!==from);
+  S.settings.push({from:from,days:days,norm:norm,by:user().name,ts:stamp()});
+  log('Изменение настроек выдачи','Дни и норма с '+fmtD(from),daysLabel(old.days)+'; '+liters(old.norm)+' л',daysLabel(days)+'; '+liters(norm)+' л');save();render();toast('Настройки сохранены','ok')};
+}
+function admDepts(){
+ $('#adm').innerHTML='<div class="page-h"><h2>Подразделения с правом на молоко</h2></div><p class="muted" style="margin-top:0">Структура загружается из 1С/HR. Снятая отметка у подразделения скрывает его и все вложенные из выдачи и отчёта.</p>'+
+ '<div class="card tree">'+DEPTS.map(d=>{const n=empsIn(d.id).length;return '<label style="padding-left:'+depth(d.id)*26+'px"><input type="checkbox" data-d="'+d.id+'"'+(S.eligible[d.id]?' checked':'')+'><span>'+esc(d.name)+'</span><span class="muted small">'+(eligible(d.id)?n+' сотр.':'нет права')+'</span></label>'}).join('')+'</div>';
+ $$('#adm [data-d]').forEach(c=>c.onchange=()=>{const id=c.dataset.d;S.eligible[id]=c.checked;log('Изменение перечня подразделений',DMAP[id].name,c.checked?'нет права':'право на молоко',c.checked?'право на молоко':'нет права');save();admDepts()});
+}
+function admCalendar(){
+ const y=+today().slice(0,4);
+ const list=S.holidays.slice().sort((a,b)=>a.date<b.date?-1:1);
+ $('#adm').innerHTML='<div class="page-h"><h2>Производственный календарь</h2><span class="sp"></span><button class="btn" id="cLoad">Загрузить '+(y+1)+' год</button></div>'+
+ '<p class="muted" style="margin-top:0">В праздничные и нерабочие дни выдача не производится и не переносится; такие дни не считаются днями выдачи в отчёте.</p>'+
+ '<div class="card"><h3>Добавить день</h3><div class="row"><label class="field"><span>Дата</span><input class="input" type="date" id="cDate"></label><label class="field" style="flex:1 1 220px"><span>Наименование</span><input class="input" id="cName" placeholder="Например: перенос выходного"></label>'+
+ '<label class="field"><span>Признак</span><select class="input" id="cKind"><option>Праздник</option><option>Нерабочий день</option></select></label><button class="btn btn-primary" id="cAdd">Добавить</button></div><div class="err-text" id="cErr"></div></div>'+
+ '<div class="tablewrap"><table><thead><tr><th>Дата</th><th>День</th><th>Наименование</th><th>Признак</th><th>Совпадает с днём выдачи</th><th></th></tr></thead><tbody>'+
+ list.map(h=>'<tr><td>'+fmtD(h.date)+'</td><td>'+I18N.ru.wd[wd(h.date)]+'</td><td>'+esc(h.name)+'</td><td>'+esc(h.kind)+'</td><td>'+(isIssueWeekday(h.date)?'<span class="tag warn">да — выдачи нет</span>':'<span class="muted">нет</span>')+'</td><td><button class="btn btn-sm" data-del="'+h.date+'">Удалить</button></td></tr>').join('')+'</tbody></table></div>';
+ $('#cAdd').onclick=()=>{const d=$('#cDate').value,n=$('#cName').value.trim(),k=$('#cKind').value;
+  if(!d||!n){$('#cErr').textContent='Укажите дату и наименование';return}if(holidayOf(d)){$('#cErr').textContent='Эта дата уже есть в календаре';return}
+  S.holidays.push({date:d,name:n,kind:k});log('Изменение календаря',fmtD(d),'',k+': '+n);save();admCalendar();toast('День добавлен','ok')};
+ $('#cLoad').onclick=()=>{let n=0;for(const h of holidaysFor(y+1))if(!holidayOf(h.date)){S.holidays.push(h);n++}log('Загрузка производственного календаря',String(y+1),'','добавлено дней: '+n);save();admCalendar();toast(n?'Загружено дней: '+n:'Календарь на '+(y+1)+' уже загружен')};
+ $$('#adm [data-del]').forEach(b=>b.onclick=()=>{const h=holidayOf(b.dataset.del);S.holidays=S.holidays.filter(x=>x!==h);log('Изменение календаря',fmtD(h.date),h.kind+': '+h.name,'удалено');save();admCalendar()});
+}
+function admIntegrations(){
+ const stale=skudStale();const lu=new Date(S.skud.last);
+ const card=(title,ok,rows,btn,extra)=>'<div class="card"><h3>'+title+' '+(ok?'<span class="tag ok">работает</span>':'<span class="tag err">ошибка</span>')+'</h3><dl class="kv">'+rows.map(r=>'<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>').join('')+'</dl>'+btn+(extra||'')+'</div>';
+ $('#adm').innerHTML='<div class="page-h"><h2>Статус интеграций</h2></div><div class="integ">'+
+ card('СКУД',!stale,[['Данные','события прохода (вход/выход)'],['Способ','REST API СКУД'],['Частота','каждые 5 минут + по кнопке'],['Последняя успешная',lu.toLocaleString('ru-RU')],['Ошибки',S.skud.errors.length?esc(S.skud.errors[0]):'нет']],
+  '<div class="row"><button class="btn btn-primary" data-sync="skud">Синхронизировать</button><button class="btn" id="simFail">'+(S.skud.fail?'Восстановить СКУД (демо)':'Имитировать сбой СКУД (демо)')+'</button></div>')+
+ card('1С:ЗУП — сотрудники и структура',true,[['Данные','сотрудники, должности, подразделения'],['Способ','HTTP-сервис / OData'],['Частота','1 раз в сутки (ночью)'],['Последняя успешная',esc(S.sync.hr)],['Сотрудников ЦУ',EMPS.length]],'<button class="btn btn-primary" data-sync="hr">Синхронизировать</button>')+
+ card('1С:ЗУП — отсутствия',true,[['Данные','больничные, отпуска, командировки, прочее'],['Способ','HTTP-сервис / OData'],['Частота','каждый час'],['Последняя успешная',esc(S.sync.abs)]],'<button class="btn btn-primary" data-sync="abs">Синхронизировать</button>')+
+ card('Active Directory',true,[['Данные','аутентификация, группы ролей'],['Способ','Kerberos / LDAP (Windows SSO)'],['Группы','MILK_Storekeeper, MILK_Admin, MILK_Viewer'],['Последняя проверка',esc(S.sync.ad)]],'<button class="btn btn-primary" data-sync="ad">Проверить</button>')+
+ '</div>';
+ $$('#adm [data-sync]').forEach(b=>b.onclick=()=>{const k=b.dataset.sync;const nm={skud:'СКУД',hr:'1С:ЗУП — сотрудники и структура',abs:'1С:ЗУП — отсутствия',ad:'Active Directory'}[k];
+  if(k==='skud'){if(S.skud.fail){S.skud.errors.unshift(stamp()+' — ошибка запроса к API СКУД (таймаут)');log('Ошибка синхронизации','СКУД','','таймаут');save();admIntegrations();renderTop();toast('СКУД не отвечает','err');return}S.skud.last=Date.now();S.skud.notified=false}
+  else S.sync[k]=stamp().slice(0,16);
+  log('Ручной запуск синхронизации',nm,'','успешно');save();admIntegrations();renderTop();toast('Синхронизация выполнена: '+nm,'ok')});
+ $('#simFail').onclick=()=>{if(S.skud.fail){S.skud.fail=false;S.skud.last=Date.now();S.skud.notified=false;log('Восстановление СКУД','СКУД','ошибка','работает','','Система');toast('СКУД восстановлен','ok')}
+  else{S.skud.fail=true;S.skud.last=Date.now()-31*60000;S.skud.errors.unshift(stamp()+' — API СКУД недоступен (HTTP 503)');log('Ошибка синхронизации','СКУД','','HTTP 503','','Система');checkSkudFailure();toast('Сбой СКУД сымитирован','err')}
+  save();admIntegrations();renderTop()};
+}
+let jLimit=100;
+function admJournal(){
+ const usersL=[...new Set(S.journal.map(j=>j.user))].sort();const acts=[...new Set(S.journal.map(j=>j.action))].sort();
+ $('#adm').innerHTML='<div class="page-h"><h2>Журнал действий</h2><span class="muted small">записи не удаляются · хранение 3 года</span></div>'+
+ '<div class="panel"><div class="row"><label class="field"><span>Пользователь</span><select class="input" id="jU"><option value="">Все</option>'+usersL.map(u=>'<option>'+esc(u)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>Действие</span><select class="input" id="jA"><option value="">Все</option>'+acts.map(a=>'<option>'+esc(a)+'</option>').join('')+'</select></label>'+
+ '<label class="field" style="flex:1 1 220px"><span>Поиск</span><input class="input" type="search" id="jQ" placeholder="ФИО, таб. №, объект"></label></div></div><div id="jOut"></div>';
+ const upd=()=>{const u=$('#jU').value,a=$('#jA').value,q=$('#jQ').value.trim().toLowerCase();
+  const list=S.journal.filter(j=>(!u||j.user===u)&&(!a||j.action===a)&&(!q||(j.object+' '+j.newv+' '+j.oldv).toLowerCase().includes(q))).sort((x,y)=>x.ts<y.ts?1:x.ts>y.ts?-1:0);
+  $('#jOut').innerHTML='<p class="muted small">Найдено записей: '+list.length+'</p><div class="tablewrap"><table><thead><tr><th>Дата и время</th><th>Пользователь</th><th>Действие</th><th>Объект</th><th>Было</th><th>Стало</th></tr></thead><tbody>'+
+  (list.slice(0,jLimit).map(j=>'<tr><td class="tabno" style="white-space:nowrap">'+esc(j.ts.slice(0,10).split('-').reverse().join('.')+' '+j.ts.slice(11))+'</td><td>'+esc(j.user)+'</td><td>'+esc(j.action)+'</td><td>'+esc(j.object)+'</td><td class="muted">'+esc(j.oldv)+'</td><td>'+esc(j.newv)+'</td></tr>').join('')||'<tr><td colspan="6" class="empty">Нет записей</td></tr>')+'</tbody></table></div>'+
+  (list.length>jLimit?'<p><button class="btn" id="jMore">Показать ещё</button></p>':'');
+  const m=$('#jMore');if(m)m.onclick=()=>{jLimit+=200;upd()}};
+ ['jU','jA'].forEach(id=>$('#'+id).onchange=()=>{jLimit=100;upd()});$('#jQ').oninput=()=>{jLimit=100;upd()};upd();
+}
+
+/* ================= start ================= */
+S=load();if(S)reindex();else initState();
+render();
+// автообновление СКУД каждые 5 минут, проверка «устаревания» каждую минуту
+setInterval(()=>{if(!S.skud.fail&&Date.now()-S.skud.last>=5*60000){S.skud.last=Date.now();save()}
+ const r=route();renderTop();if(r.page==='issue'&&!$('.overlay')&&!$('.combo-panel:not([hidden])')&&document.activeElement!==$('#q'))renderIssue();},60000);
+})();
+</script>
+</body>
+</html>
